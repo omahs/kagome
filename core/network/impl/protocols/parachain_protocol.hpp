@@ -181,9 +181,8 @@ namespace kagome::network {
     const std::string &protocolName() const override {
       static std::optional<std::string> protocol_name;
       if (!protocol_name) {
-        protocol_name = base_.protocolIds().protocols.size() > 0
-                          ? base_.protocolIds().protocols[0]
-                          : base_.protocolName();
+        protocol_name = base_.protocolIds().size() > 0 ? base_.protocolIds()[0]
+                                                       : base_.protocolName();
       }
       return protocol_name.value();
     }

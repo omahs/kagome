@@ -143,7 +143,7 @@ namespace kagome::network {
     main_pool_handler_->execute([weak{weak_from_this()}] {
       if (auto self = weak.lock()) {
         self->host_.setProtocolHandler(
-            {{self->ping_protocol_.get()->getProtocolId()}},
+            {self->ping_protocol_.get()->getProtocolId()},
             [weak](libp2p::StreamAndProtocol stream_and_proto) {
               if (auto self = weak.lock()) {
                 auto &stream = stream_and_proto.stream;
