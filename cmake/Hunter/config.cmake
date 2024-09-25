@@ -106,6 +106,12 @@ hunter_config(
 )
 
 hunter_config(
+    libp2p
+    URL https://github.com/ErakhtinB/cpp-libp2p/archive/af9cc1a4f966fa3816e1bc20d8457568c2265617.tar.gz
+    SHA1 36ba651683d14aa561d7a9075ce60adf94376ca5
+)
+
+hunter_config(
     erasure_coding_crust
 #    VERSION 0.0.8
     URL  https://github.com/qdrvm/erasure-coding-crust/archive/refs/tags/v0.0.8.tar.gz

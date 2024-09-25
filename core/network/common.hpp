@@ -62,23 +62,24 @@ namespace kagome::network {
                                          const Args &...args) {
     struct Visitor {
       std::string_view format;
-      libp2p::StreamProtocols protocols;
+      libp2p::StreamProtocols streamProtocols;
 
       void visit(const blockchain::GenesisBlockHash &arg) {
         auto x = hex_lower(arg);
-        protocols.emplace_back(fmt::vformat(format, fmt::make_format_args(x)));
+        streamProtocols.protocols.emplace_back(
+            fmt::vformat(format, fmt::make_format_args(x)));
       }
       void visit(const application::ChainSpec &arg) {
-        protocols.emplace_back(
+        streamProtocols.protocols.emplace_back(
             fmt::vformat(format, fmt::make_format_args(arg.protocolId())));
       }
       void visit(const ProtocolPrefix &arg) {
-        protocols.emplace_back(
+        streamProtocols.protocols.emplace_back(
             fmt::vformat(format, fmt::make_format_args(arg.prefix)));
       }
     } visitor{format, {}};
     (visitor.visit(args), ...);
-    return visitor.protocols;
+    return visitor.streamProtocols;
   }
 
 }  // namespace kagome::network

@@ -42,7 +42,7 @@ namespace kagome::network {
           host_{host},
           protocols_{std::move(protocols)},
           log_{std::move(logger)} {
-      BOOST_ASSERT(!protocols_.empty());
+      BOOST_ASSERT(!protocols_.protocols.empty());
     }
 
     /**

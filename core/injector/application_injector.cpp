@@ -570,6 +570,11 @@ namespace {
         primitives::GenesisBlockHeader{*header_opt, hash});
   }
 
+  sptr<libp2p::StreamProtocols> get_stream_protocols() {
+    return std::make_shared<libp2p::StreamProtocols>(
+        libp2p::StreamProtocols{{"/ipfs/id/1.0.0", "/substrate/1.0"}});
+  }
+
   template <typename... Ts>
   auto makeApplicationInjector(sptr<application::AppConfiguration> config,
                                Ts &&...args) {
@@ -854,6 +859,10 @@ namespace {
                 [](const auto &injector) {
                   return get_genesis_block_header(injector);
                 }),
+            bind_by_lambda<libp2p::StreamProtocols>(
+                [](const auto &injector) {
+                  return get_stream_protocols();
+                }),
             di::bind<telemetry::TelemetryService>.template to<telemetry::TelemetryServiceImpl>(),
             di::bind<api::InternalApi>.template to<api::InternalApiImpl>(),
             di::bind<consensus::babe::BabeConfigRepository>.template to<consensus::babe::BabeConfigRepositoryImpl>(),
@@ -923,7 +932,7 @@ namespace kagome::injector {
   KagomeNodeInjector::KagomeNodeInjector(
       sptr<application::AppConfiguration> app_config)
       : pimpl_{std::make_unique<KagomeNodeInjectorImpl>(
-          makeKagomeNodeInjector(std::move(app_config)))} {}
+            makeKagomeNodeInjector(std::move(app_config)))} {}
 
   sptr<application::AppConfiguration> KagomeNodeInjector::injectAppConfig() {
     return pimpl_->injector_

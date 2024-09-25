@@ -103,7 +103,7 @@ namespace kagome::network {
                       std::function<void(outcome::result<Response>)> cb) {
       host.newStream(
           peer_info.id,
-          {protocol},
+          {{protocol}},
           [request = std::move(request),
            cb = std::move(cb)](auto &&stream_res) mutable {
             if (!stream_res) {
@@ -164,7 +164,7 @@ namespace kagome::network {
                       Request request,
                       std::function<void(outcome::result<void>)> cb) {
       host.newStream(peer_info.id,
-                     {protocol},
+                     {{protocol}},
                      [request = std::move(request),
                       cb = std::move(cb)](auto &&stream_res) mutable {
                        if (!stream_res) {
