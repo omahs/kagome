@@ -414,7 +414,8 @@ namespace kagome::runtime::wasm_edge {
   }
 
   CompilationOutcome<std::shared_ptr<Module>> ModuleFactoryImpl::loadCompiled(
-      std::filesystem::path path_compiled) const {
+      std::filesystem::path path_compiled,
+      const std::optional<RuntimeContext::ContextParams> config) const {
     Buffer code;
     if (auto res = readFile(code, path_compiled); !res) {
       return CompilationError{
@@ -424,6 +425,12 @@ namespace kagome::runtime::wasm_edge {
     }
     auto code_hash = hasher_->blake2b_256(code);
     OUTCOME_TRY(configure_ctx, configureCtx());
+    if (config) {
+      if (config->wasm_ext_bulk_memory) {
+        WasmEdge_ConfigureAddProposal(configure_ctx.raw(),
+                                      WasmEdge_Proposal_BulkMemoryOperations);
+      }
+    }
     LoaderContext loader_ctx = WasmEdge_LoaderCreate(configure_ctx.raw());
     // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     WasmEdge_ASTModuleContext *module_ctx;
