@@ -50,7 +50,19 @@ target_link_libraries(uncompress_code_test
 addtest(executor_test
     executor_test.cpp
     )
+addtest(executor_memory_bulk_test
+    executor_memory_bulk_test.cpp
+    )
+
 target_link_libraries(executor_test
+    executor
+    basic_code_provider
+    scale::scale
+    logger
+    log_configurator
+    module_repository
+    )
+target_link_libraries(executor_memory_bulk_test
     executor
     basic_code_provider
     scale::scale

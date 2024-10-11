@@ -101,3 +101,64 @@ TEST(InstancePoolTest, HeavilyMultithreadedCompilation) {
         {}));
   }
 }
+
+TEST (CompilingBulkMemory, CompilingBulkMemory) {
+  testutil::prepareLoggers();
+
+  using namespace std::chrono_literals;
+
+  auto module_instance_mock = std::make_shared<ModuleInstanceMock>();
+
+  auto module_mock = std::make_shared<ModuleMock>();
+
+  auto module_factory = std::make_shared<ModuleFactoryMock>();
+  auto code = std::make_shared<Buffer>("runtime_code"_buf);
+
+  static constexpr int THREAD_NUM = 100;
+  static constexpr int POOL_SIZE = 10;
+
+  AppConfigurationMock app_config;
+  EXPECT_CALL(app_config, runtimeCacheDirPath()).WillRepeatedly(Return("/tmp"));
+  auto pool = std::make_shared<RuntimeInstancesPoolImpl>(
+      app_config,
+      module_factory,
+      std::make_shared<NoopWasmInstrumenter>(),
+      POOL_SIZE);
+
+  EXPECT_CALL(*module_factory, compilerType())
+      .WillRepeatedly(Return(std::nullopt));
+  EXPECT_CALL(*module_factory, compile(_, _, _))
+      .Times(POOL_SIZE)
+      .WillRepeatedly([&] {
+        std::this_thread::sleep_for(1s);
+        return outcome::success();
+      });
+  EXPECT_CALL(*module_factory, loadCompiled(_))
+      .Times(POOL_SIZE)
+      .WillRepeatedly([&] {
+        std::this_thread::sleep_for(1s);
+        return module_mock;
+      });
+
+  std::vector<std::thread> threads;
+  for (int i = 0; i < THREAD_NUM; i++) {
+    threads.emplace_back([&pool, &code, i]() {
+      ASSERT_OUTCOME_SUCCESS_TRY(pool->instantiateFromCode(
+          make_code_hash(i % POOL_SIZE), [&] { return code; }, {}));
+    });
+  }
+
+  for (auto &t : threads) {
+    t.join();
+  }
+
+  testing::Mock::VerifyAndClearExpectations(pool.get());
+
+  // check that all POOL_SIZE instances are in cache
+  for (int i = 0; i < POOL_SIZE; i++) {
+    ASSERT_OUTCOME_SUCCESS_TRY(pool->instantiateFromCode(
+        make_code_hash(i),
+        []() -> decltype(code) { throw std::logic_error{"already compiled"}; },
+        {}));
+  }
+}
