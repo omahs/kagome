@@ -101,20 +101,39 @@ namespace kagome::parachain {
       std::vector<AvailabilityStore::ErasureChunk> chunks;
       auto it = state.per_candidate_.find(candidate_hash);
       if (it != state.per_candidate_.end()) {
+        SL_DEBUG(logger,
+                 "Found {} chunks for candidate {}",
+                 it->second.chunks.size(),
+                 candidate_hash);
         for (auto &p : it->second.chunks) {
+          SL_DEBUG(logger,
+                   "Adding chunk with index {} for candidate {}",
+                   p.first,
+                   candidate_hash);
           chunks.emplace_back(p.second);
         }
+      } else {
+        SL_DEBUG(logger, "No chunks found for candidate {}", candidate_hash);
       }
+      SL_DEBUG(logger,
+               "Returning {} chunks for candidate {}",
+               chunks.size(),
+               candidate_hash);
       return chunks;
     });
+    // TODO: JUST FOR TESTING
+    chunks = {};
     if (chunks.empty()) {
       auto space = storage_->getSpace(storage::Space::kAvaliabilityStorage);
       if (not space) {
         SL_ERROR(logger, "Failed to get space");
         return chunks;
       }
-      auto cursor =
-          storage_->getSpace(storage::Space::kAvaliabilityStorage)->cursor();
+      auto cursor = space->cursor();
+      if (not cursor) {
+        SL_ERROR(logger, "Failed to get cursor");
+        return chunks;
+      }
       auto seek_res =
           cursor->seek(CandidateChunkKey::encode_hash(candidate_hash));
       if (not seek_res) {
@@ -189,6 +208,7 @@ namespace kagome::parachain {
   void AvailabilityStoreImpl::putChunk(const network::RelayHash &relay_parent,
                                        const CandidateHash &candidate_hash,
                                        ErasureChunk &&chunk) {
+    SL_INFO(logger, "putChunk called");
     state_.exclusiveAccess([&](auto &state) {
       state.candidates_[relay_parent].insert(candidate_hash);
       state.per_candidate_[candidate_hash].chunks[chunk.index] = chunk;
@@ -198,14 +218,31 @@ namespace kagome::parachain {
       SL_ERROR(logger, "Failed to get space");
       return;
     }
+    SL_DEBUG(logger,
+             "Put chunk with index {} for candidate {}",
+             chunk.index,
+             candidate_hash);
     auto encoded_chunk = scale::encode(chunk);
     if (not encoded_chunk) {
       SL_ERROR(
           logger, "Failed to encode chunk, error: {}", encoded_chunk.error());
       return;
     }
+    SL_DEBUG(logger,
+             "Encoded chunk with index {} for candidate {}",
+             chunk.index,
+             candidate_hash);
+    const auto candidate_chunk_key =
+        CandidateChunkKey::encode({candidate_hash, chunk.index});
+    SL_DEBUG(logger,
+             "Encoded key for chunk with key {}",
+             candidate_chunk_key.toString());
     space->put(CandidateChunkKey::encode({candidate_hash, chunk.index}),
                std::move(encoded_chunk.value()));
+    SL_DEBUG(logger,
+             "Put chunk with index {} for candidate {}",
+             chunk.index,
+             candidate_hash);
   }
 
   void AvailabilityStoreImpl::remove(const network::RelayHash &relay_parent) {

@@ -88,6 +88,14 @@ namespace kagome::storage {
             spaceName(static_cast<Space>(i)),
             configureColumn(other_spaces_cache_size));
         ttls.push_back(avaliabilityStorageTTLSecs);
+      } else if (i == Space::kDefault) {
+        const auto space_name = spaceName(static_cast<Space>(i));
+        const auto cache_size = other_spaces_cache_size;
+        column_family_descriptors.emplace_back(space_name,
+                                               configureColumn(cache_size));
+        column_family_descriptors_ttl.emplace_back(space_name,
+                                                   configureColumn(cache_size));
+        ttls.push_back(0);
       } else {
         column_family_descriptors.emplace_back(
             spaceName(static_cast<Space>(i)),
@@ -96,15 +104,24 @@ namespace kagome::storage {
       }
     }
 
-    std::vector<std::string> existing_families;
+    std::vector<std::string> existing_families, existing_families_ttl;
     auto res = rocksdb::DB::ListColumnFamilies(
         options, path.native(), &existing_families);
     if (!res.ok() && !res.IsPathNotFound()) {
       SL_ERROR(log,
-               "Can't open database in {}: {}",
+               "Can't list column families in {}: {}",
                absolute_path.native(),
                res.ToString());
       return status_as_error(res);
+    }
+    auto res_ttl = rocksdb::DB::ListColumnFamilies(
+        options, ttl_path.native(), &existing_families_ttl);
+    if (!res_ttl.ok() && !res_ttl.IsPathNotFound()) {
+      SL_ERROR(log,
+               "Can't list ttl column families in {}: {}",
+               absolute_ttl_path.native(),
+               res_ttl.ToString());
+      return status_as_error(res_ttl);
     }
     for (auto &family : existing_families) {
       if (std::ranges::find_if(
@@ -115,6 +132,18 @@ namespace kagome::storage {
           == column_family_descriptors.end()) {
         column_family_descriptors.emplace_back(
             family, configureColumn(other_spaces_cache_size));
+      }
+    }
+    for (auto &family : existing_families_ttl) {
+      if (std::ranges::find_if(
+              column_family_descriptors_ttl,
+              [&family](rocksdb::ColumnFamilyDescriptor &desc) {
+                return desc.name == family;
+              })
+          == column_family_descriptors_ttl.end()) {
+        column_family_descriptors_ttl.emplace_back(
+            family, configureColumn(other_spaces_cache_size));
+        ttls.push_back(avaliabilityStorageTTLSecs);
       }
     }
 
@@ -133,6 +162,9 @@ namespace kagome::storage {
       return status_as_error(status);
     }
 
+    for (const auto &desc : column_family_descriptors_ttl) {
+      SL_INFO(log, "Creating ttl column family {}", desc.name);
+    }
     status = rocksdb::DBWithTTL::Open(options,
                                       ttl_path.native(),
                                       column_family_descriptors_ttl,
@@ -188,7 +220,8 @@ namespace kagome::storage {
     if (not_found_in_regular) {
       column_it = find_column_in_handles(column_family_handles_ttl_);
     }
-    if (not_found_in_regular and column_it == column_family_handles_ttl_.end()) {
+    if (not_found_in_regular
+        and column_it == column_family_handles_ttl_.end()) {
       throw DatabaseError::INVALID_ARGUMENT;
     }
     auto &handle = *column_it;
