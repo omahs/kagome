@@ -783,7 +783,7 @@ namespace kagome::runtime {
 
     KAGOME_PROFILE_END(instrument_wasm);
 
-    OUTCOME_TRY(wabtValidate(module));
+    OUTCOME_TRY(wabtValidate(module, {}));
     return outcome::success();
   }
 

@@ -12,9 +12,11 @@
 #include <wabt/validator.h>
 #include <wabt/wast-lexer.h>
 #include <wabt/wast-parser.h>
+#include "wabt/option-parser.h"
 
 #include "common/buffer.hpp"
 #include "common/bytestr.hpp"
+#include "runtime/runtime_context.hpp"
 #include "runtime/wabt/error.hpp"
 
 namespace kagome::runtime {
@@ -41,9 +43,15 @@ namespace kagome::runtime {
     return module;
   }
 
-  inline WabtOutcome<void> wabtValidate(const wabt::Module &module) {
+  inline WabtOutcome<void> wabtValidate(
+      const wabt::Module &module, const RuntimeContext::ContextParams &config) {
+    wabt::Features features;
+    features.disable_reference_types();
+    if (not config.wasm_ext_bulk_memory) {
+      features.disable_bulk_memory();
+    }
     return wabtTry([&](wabt::Errors &errors) {
-      return wabt::ValidateModule(&module, &errors, wabt::ValidateOptions{});
+      return wabt::ValidateModule(&module, &errors, features);
     });
   }
 
@@ -56,7 +64,8 @@ namespace kagome::runtime {
     return common::Buffer{std::move(s.output_buffer().data)};
   }
 
-  inline std::unique_ptr<wabt::Module> watToModule(std::span<const uint8_t> wat) {
+  inline std::unique_ptr<wabt::Module> watToModule(
+      std::span<const uint8_t> wat) {
     wabt::Result result;
     wabt::Errors errors;
     std::unique_ptr<wabt::WastLexer> lexer =

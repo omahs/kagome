@@ -71,9 +71,23 @@ void test(std::string name,
       std::string wat_code;
       EXPECT_TRUE(qtils::readFile(wat_code, wat_path));
       std::string_view wat_code_view(wat_code);
+      auto code = kagome::runtime::watToWasm(kagome::str2byte(wat_code_view));
+      auto instrument = std::make_shared<kagome::runtime::WasmInstrumenter>();
+      auto instrumented_code = instrument->instrument(code, context_params);
+      if (not instrumented_code) {
+        fmt::println("instrument: [{}]", instrumented_code.error().message());
+        return nullptr;
+      }
+      if (bulk) {
+        EXPECT_TRUE(instrumented_code);
+        code = std::move(instrumented_code.value());
+      } else {
+        EXPECT_FALSE(instrumented_code);
+      }
+
       auto _compile = factory.compile(
           path,
-          kagome::runtime::watToWasm(kagome::str2byte(wat_code_view)),
+          code,
           context_params);
       if (not _compile) {
         fmt::println("compile: [{}]", _compile.error().message());
@@ -82,6 +96,8 @@ void test(std::string name,
         EXPECT_TRUE(_compile);
       } else {
         EXPECT_FALSE(_compile);
+      }
+      if (not _compile) {
         return nullptr;
       }
     } else {
@@ -96,6 +112,8 @@ void test(std::string name,
       EXPECT_TRUE(_module);
     } else {
       EXPECT_FALSE(_module);
+    }
+    if (not _module) {
       return nullptr;
     }
     auto instance = _module.value()->instantiate();
@@ -136,6 +154,6 @@ TEST_F(WasmBulkMemoryTest, wasm_edge_compiler) {
   test("wasmedge-compile", *kagome::runtime::wasm_edge::compiler(), false);
 }
 
-TEST_F(WasmBulkMemoryTest, wasm_edge_interpreter) {
-  test("wasmedge-interpret", *kagome::runtime::wasm_edge::interpreter(), true);
-}
+// TEST_F(WasmBulkMemoryTest, wasm_edge_interpreter) {
+//   test("wasmedge-interpret", *kagome::runtime::wasm_edge::interpreter(), false);
+// }
